@@ -34,8 +34,9 @@ async def test_skip_when_sncf_timestamp_unchanged():
     sncf.fetch_export.assert_not_called()
     trips.replace_all.assert_not_called()
     sync.update.assert_awaited()
-    status = sync.update.await_args.args[0]["last_sync_status"]
-    assert status == "skipped"
+    payload = sync.update.await_args.args[0]
+    assert payload["last_sync_status"] == "skipped"
+    assert payload["last_attempt_at"]
 
 
 @pytest.mark.asyncio

@@ -58,6 +58,7 @@ class SearchResponse(BaseModel):
 
 class SyncInfo(BaseModel):
     last_sync_at: Optional[str] = None
+    last_attempt_at: Optional[str] = None
     last_sync_status: str = "pending"
     sncf_data_updated_at: Optional[str] = None
     total_trips: int = 0

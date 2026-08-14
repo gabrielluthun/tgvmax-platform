@@ -420,10 +420,11 @@ export default function About() {
 
       <AboutSection id="about-sync" title="Synchronisation" testId="about-section-sync">
         <p>
-          Sur l&apos;écran Recherche, le header affiche deux horodatages : la dernière publication des{" "}
+          Le header affiche la dernière publication des{" "}
           <strong className={EMPHASIS}>données SNCF</strong> et la dernière{" "}
-          <strong className={EMPHASIS}>importation MaxTracker</strong> (environ toutes les 15 minutes).
-          Un bouton permet de forcer une sync manuelle.
+          <strong className={EMPHASIS}>sync MaxTracker</strong> (toutes les 15 minutes). <br />
+          La synchronisation concorde les horaires à l&apos;heure réelle : les départs déjà passés
+          ne s&apos;affichent plus. Un bouton permet de forcer un nouvel import SNCF.
         </p>
         <p>
           Ce n&apos;est pas du temps réel : un billet peut être réservé entre deux rafraîchissements. Pour
@@ -461,9 +462,8 @@ export default function About() {
               minute par minute.
             </li>
             <li>
-              <strong className={EMPHASIS}>Import MaxTracker</strong> : environ toutes les 15 minutes
-              lorsque le service est actif. La « dernière sync » du header correspond à ce dernier import,
-              elle ne peut pas être plus récente que la publication SNCF.
+              <strong className={EMPHASIS}>Sync MaxTracker</strong> : toutes les 15 minutes. La
+              « dernière sync » du header est ce contrôle. Les départs déjà passés sont masqués.
             </li>
           </ul>
         </BorderBlock>
