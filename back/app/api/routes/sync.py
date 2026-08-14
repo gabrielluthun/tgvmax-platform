@@ -19,4 +19,4 @@ async def get_sync_info(sync_repo: SyncRepoDep, sncf: SncfClientDep):
 
 @router.post("/trigger")
 async def trigger_sync(sync_service: SyncServiceDep):
-    return await sync_service.sync_trips()
+    return await sync_service.sync_trips(force=True)
