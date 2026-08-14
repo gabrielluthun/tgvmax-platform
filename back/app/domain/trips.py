@@ -18,3 +18,30 @@ def departure_passed(date: str, heure_depart: str, *, now: datetime | None = Non
     if date > today:
         return False
     return dep_time < cur_time
+
+
+def filter_departed_from_payload(payload: dict, *, now: datetime | None = None) -> dict:
+    """Retire les trains / correspondances déjà partis d'une réponse de recherche."""
+    groups_out: list[dict] = []
+    for group in payload.get("groups", []):
+        g = dict(group)
+        trips = [
+            t
+            for t in g.get("trips", [])
+            if not departure_passed(t.get("date") or "", t.get("heure_depart") or "", now=now)
+        ]
+        connected = [
+            j
+            for j in g.get("connected_trips", [])
+            if not departure_passed(j.get("date") or "", j.get("heure_depart") or "", now=now)
+        ]
+        if not trips and not connected:
+            continue
+        g["trips"] = trips
+        g["connected_trips"] = connected
+        g["trip_count"] = len(trips) + len(connected)
+        groups_out.append(g)
+    out = dict(payload)
+    out["groups"] = groups_out
+    out["total_trips"] = sum(g["trip_count"] for g in groups_out)
+    return out
