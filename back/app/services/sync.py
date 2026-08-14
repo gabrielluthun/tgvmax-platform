@@ -123,6 +123,7 @@ class SyncService:
             sncf_updated = await self._sncf.fetch_dataset_updated_at()
         await self._sync.update({
             "last_sync_at": finished.isoformat(),
+            "last_attempt_at": finished.isoformat(),
             "last_sync_status": "ok",
             "sncf_data_updated_at": sncf_updated,
             "total_trips": total,
