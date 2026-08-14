@@ -2,7 +2,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from app.domain.trips import PARIS_TZ, departure_passed, paris_cleanup_cutoff
+from app.domain.trips import PARIS_TZ, departure_passed, filter_departed_from_payload, paris_cleanup_cutoff
 
 
 class TestDeparturePassed:
@@ -23,3 +23,39 @@ class TestDeparturePassed:
     def test_future_day(self):
         now = datetime(2026, 5, 18, 10, 0, tzinfo=PARIS_TZ)
         assert not departure_passed("2026-05-19", "06:00", now=now)
+
+
+class TestFilterDepartedFromPayload:
+    def test_drops_passed_trips_and_empty_groups(self):
+        now = datetime(2026, 5, 18, 18, 12, tzinfo=PARIS_TZ)
+        payload = {
+            "origin": "Paris",
+            "total_trips": 3,
+            "groups": [
+                {
+                    "destination_city": "Lyon",
+                    "trip_count": 2,
+                    "trips": [
+                        {"date": "2026-05-18", "heure_depart": "16:00"},
+                        {"date": "2026-05-18", "heure_depart": "19:00"},
+                    ],
+                    "connected_trips": [
+                        {"date": "2026-05-18", "heure_depart": "17:00"},
+                    ],
+                },
+                {
+                    "destination_city": "Nantes",
+                    "trip_count": 1,
+                    "trips": [{"date": "2026-05-18", "heure_depart": "10:00"}],
+                    "connected_trips": [],
+                },
+            ],
+        }
+        out = filter_departed_from_payload(payload, now=now)
+        assert out["total_trips"] == 1
+        assert len(out["groups"]) == 1
+        assert out["groups"][0]["destination_city"] == "Lyon"
+        assert out["groups"][0]["trip_count"] == 1
+        assert out["groups"][0]["trips"][0]["heure_depart"] == "19:00"
+        assert out["groups"][0]["connected_trips"] == []
+
