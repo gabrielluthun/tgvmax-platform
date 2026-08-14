@@ -31,9 +31,24 @@ class SyncService:
         self._warm_task: asyncio.Task | None = None
         self._warm_generation = 0
 
-    async def sync_trips(self) -> dict:
+    async def sync_trips(self, *, force: bool = False) -> dict:
         started = datetime.now(timezone.utc)
-        logger.info("Starting SNCF sync at %s", started.isoformat())
+        logger.info("Starting SNCF sync at %s force=%s", started.isoformat(), force)
+
+        sncf_updated = await self._sncf.fetch_dataset_updated_at()
+        previous_updated = await self._sync.get_sncf_data_updated_at()
+        if (
+            not force
+            and sncf_updated is not None
+            and previous_updated is not None
+            and sncf_updated == previous_updated
+        ):
+            await self._sync.update({
+                "last_sync_status": "skipped",
+                "last_attempt_at": started.isoformat(),
+            })
+            logger.info("SNCF dataset unchanged (%s) — skip export and cache warm", sncf_updated)
+            return {"status": "skipped", "reason": "sncf_unchanged"}
 
         data = await self._sncf.fetch_export()
         if data is None:
@@ -104,7 +119,8 @@ class SyncService:
 
         total = await self._trips.count()
         finished = datetime.now(timezone.utc)
-        sncf_updated = await self._sncf.fetch_dataset_updated_at()
+        if sncf_updated is None:
+            sncf_updated = await self._sncf.fetch_dataset_updated_at()
         await self._sync.update({
             "last_sync_at": finished.isoformat(),
             "last_sync_status": "ok",
