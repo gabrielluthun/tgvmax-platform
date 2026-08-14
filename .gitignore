@@ -54,6 +54,9 @@ __pycache__/
 venv/
 .venv/
 
+# Local cache-size measurement scripts
+back/scripts/
+
 # Development tools
 chainlit.md
 .chainlit

@@ -1,4 +1,5 @@
 """SNCF → MongoDB sync pipeline."""
+import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -27,6 +28,8 @@ class SyncService:
         self._sync = sync_repo
         self._sncf = sncf
         self._search = search_service
+        self._warm_task: asyncio.Task | None = None
+        self._warm_generation = 0
 
     async def sync_trips(self) -> dict:
         started = datetime.now(timezone.utc)
@@ -115,13 +118,31 @@ class SyncService:
             (finished - started).total_seconds(),
         )
 
-        if self._search is not None:
-            try:
-                await self._search.warm_cache()
-            except Exception:
-                logger.exception("Cache warming failed after sync")
-
+        self._schedule_warm_cache()
         return {"status": "ok", "total": total}
+
+    def _schedule_warm_cache(self) -> None:
+        if self._search is None:
+            return
+        self._warm_generation += 1
+        generation = self._warm_generation
+        if self._warm_task is not None and not self._warm_task.done():
+            logger.info("Cache warming already running — will restart after current pass")
+            return
+        self._warm_task = asyncio.create_task(self._warm_cache_background(generation))
+
+    async def _warm_cache_background(self, generation: int) -> None:
+        try:
+            logger.info("Cache warming started in background")
+            await self._search.warm_cache()
+        except Exception:
+            logger.exception("Cache warming failed after sync")
+        finally:
+            if generation != self._warm_generation:
+                logger.info("A newer sync completed — restarting cache warm")
+                self._warm_task = asyncio.create_task(
+                    self._warm_cache_background(self._warm_generation)
+                )
 
     async def cleanup_past_trips(self) -> int:
         removed = await self._trips.cleanup_past()

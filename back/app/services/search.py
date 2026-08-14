@@ -11,6 +11,7 @@ from app.db.repositories.search_cache import SearchCacheRepository
 from app.db.repositories.sync_state import SyncStateRepository
 from app.db.repositories.trips import TripsRepository
 from app.domain.connections import (
+    DEFAULT_MAX_CONNECTIONS,
     compose_connected_journeys,
     direct_trip_fingerprint,
     find_all_connected_journeys,
@@ -39,6 +40,30 @@ from app.services.sncf.client import SncfClient
 from app.services.sncf.connect import build_sncf_connect_url
 
 logger = logging.getLogger("maxtracker")
+
+_DERIVED_TRIP_FIELDS = ("origine_label", "destination_label", "sncf_connect_url")
+
+
+def _slim_trip(trip: dict) -> dict:
+    return {k: v for k, v in trip.items() if k not in _DERIVED_TRIP_FIELDS}
+
+
+def slim_cache_payload(payload: dict) -> dict:
+    """Retire les champs recalculés à la lecture — réduit la taille BSON."""
+    slim = {k: v for k, v in payload.items() if k not in ("origin", "served")}
+    groups = []
+    for group in slim.get("groups", []):
+        g = dict(group)
+        g["trips"] = [_slim_trip(t) for t in g.get("trips", [])]
+        connected = []
+        for journey in g.get("connected_trips", []):
+            j = dict(journey)
+            j["legs"] = [_slim_trip(leg) for leg in j.get("legs", [])]
+            connected.append(j)
+        g["connected_trips"] = connected
+        groups.append(g)
+    slim["groups"] = groups
+    return slim
 
 
 class SearchService:
@@ -274,7 +299,7 @@ class SearchService:
     async def _store_cache(self, key: str, resp: SearchResponse) -> None:
         if not resp.served:
             return
-        payload = resp.model_dump(mode="json")
+        payload = slim_cache_payload(resp.model_dump(mode="json"))
         self._memory.set(key, payload, sync_at=resp.last_sync_at)
         try:
             await self._cache.set(key, payload, sync_at=resp.last_sync_at)
@@ -311,7 +336,9 @@ class SearchService:
         logger.info("cache warmed: %d origins, %d stale entries pruned", count, removed)
         return count
 
-    async def _compute_search_response(self, origin: str) -> SearchResponse:
+    async def _compute_search_response(
+        self, origin: str, *, max_connections: int = DEFAULT_MAX_CONNECTIONS
+    ) -> SearchResponse:
         origin_clean = origin.strip()
         origin_norm = normalize_station(origin_clean)
         is_metro = is_metropolis_query(origin_clean, origin_norm)
@@ -388,6 +415,7 @@ class SearchService:
                 raw,
                 hub_raw,
                 origin_metropolis=origin_metropolis,
+                max_connections=max_connections,
             )
             merge_connected_into_groups(
                 grouped,
