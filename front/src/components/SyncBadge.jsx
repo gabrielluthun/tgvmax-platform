@@ -72,11 +72,24 @@ function SncfDataInfo() {
   );
 }
 
-export default function SyncBadge({ info, onRefresh, refreshing }) {
+function cooldownTitle(remainingMs) {
+  const seconds = Math.max(1, Math.ceil(remainingMs / 1000));
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m <= 0) return `Réessayez dans ${s} s`;
+  return `Réessayez dans ${m} min ${String(s).padStart(2, "0")} s`;
+}
+
+export default function SyncBadge({ info, onRefresh, refreshing, cooldownUntil = 0 }) {
   const [, force] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
   const mobilePanelRef = useRef(null);
-  useEffect(() => { const id = setInterval(() => force((x) => x + 1), 30000); return () => clearInterval(id); }, []);
+  const remainingMs = Math.max(0, cooldownUntil - Date.now());
+  const onCooldown = remainingMs > 0;
+  useEffect(() => {
+    const id = setInterval(() => force((x) => x + 1), onCooldown ? 1000 : 30000);
+    return () => clearInterval(id);
+  }, [onCooldown]);
   useEffect(() => {
     if (!mobileOpen) return;
     const onPointerDown = (event) => {
@@ -136,10 +149,16 @@ export default function SyncBadge({ info, onRefresh, refreshing }) {
 
       <button
         onClick={onRefresh}
-        disabled={refreshing}
+        disabled={refreshing || onCooldown}
         data-testid="manual-refresh-btn"
         className="p-2 rounded-full hover:bg-slate-100 transition-colors disabled:opacity-50"
-        title="Rafraîchir maintenant"
+        title={
+          refreshing
+            ? "Synchronisation en cours"
+            : onCooldown
+              ? cooldownTitle(remainingMs)
+              : "Rafraîchir maintenant"
+        }
       >
         <RefreshCw className={`h-4 w-4 text-slate-600 ${refreshing ? "animate-spin" : ""}`} />
       </button>

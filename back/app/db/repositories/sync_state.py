@@ -21,3 +21,7 @@ class SyncStateRepository:
     async def get_last_sync_at(self) -> Optional[str]:
         doc = await self.get()
         return doc.get("last_sync_at")
+
+    async def get_sncf_data_updated_at(self) -> Optional[str]:
+        doc = await self.get()
+        return doc.get("sncf_data_updated_at")

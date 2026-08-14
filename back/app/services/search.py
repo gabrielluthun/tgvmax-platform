@@ -28,6 +28,7 @@ from app.domain.stations import (
     trip_id,
 )
 from app.domain.station_labels import display_station_name
+from app.domain.trips import filter_departed_from_payload
 from app.schemas.trips import (
     ConnectedTripOut,
     DestinationGroup,
@@ -222,7 +223,8 @@ class SearchService:
         return enriched
 
     def _response_from_cached(self, origin: str, cached: dict) -> SearchResponse:
-        payload = self._enrich_cached_payload({**cached["payload"], "origin": origin.strip()})
+        payload = filter_departed_from_payload({**cached["payload"], "origin": origin.strip()})
+        payload = self._enrich_cached_payload(payload)
         return SearchResponse(**payload)
 
     async def search_trips(self, origin: str, *, client_ip: str = "anon") -> SearchResponse:
