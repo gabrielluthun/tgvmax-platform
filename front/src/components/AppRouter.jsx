@@ -17,10 +17,13 @@ const queryClient = new QueryClient({
   },
 });
 
+const SYNC_COOLDOWN_MS = 3 * 60 * 1000;
+
 export default function AppRouter() {
   const [view, setView] = useState(viewFromHash);
   const [syncInfo, setSyncInfo] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [cooldownUntil, setCooldownUntil] = useState(0);
   const rerunSearchRef = useRef(null);
 
   useEffect(() => {
@@ -36,11 +39,13 @@ export default function AppRouter() {
   }, []);
 
   const onManualSync = useCallback(async () => {
+    if (refreshing || Date.now() < cooldownUntil) return;
     setRefreshing(true);
     try {
       await triggerSync();
       const info = await getSyncInfo();
       setSyncInfo(info);
+      setCooldownUntil(Date.now() + SYNC_COOLDOWN_MS);
       toast.success("Synchronisation effectuée");
       rerunSearchRef.current?.();
     } catch {
@@ -48,7 +53,7 @@ export default function AppRouter() {
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [refreshing, cooldownUntil]);
 
   const registerRerunSearch = useCallback((fn) => {
     rerunSearchRef.current = fn;
@@ -60,7 +65,12 @@ export default function AppRouter() {
         <AppHeader
           activeView={view}
           trailing={
-            <SyncBadge info={syncInfo} onRefresh={onManualSync} refreshing={refreshing} />
+            <SyncBadge
+              info={syncInfo}
+              onRefresh={onManualSync}
+              refreshing={refreshing}
+              cooldownUntil={cooldownUntil}
+            />
           }
         />
         {view === APP_VIEW.ABOUT ? (
