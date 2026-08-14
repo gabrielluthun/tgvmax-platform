@@ -62,7 +62,7 @@ function SncfDataInfo() {
             <li>
               <span className="font-medium text-slate-700">Dernière sync</span>
               <span className="block mt-0.5 text-slate-500">
-                Dernier import MaxTracker, jamais plus récent que la SNCF.
+                Dernier contrôle MaxTracker (toutes les 15 min), même si la SNCF n’a rien publié.
               </span>
             </li>
           </ul>
@@ -104,7 +104,8 @@ export default function SyncBadge({ info, onRefresh, refreshing, cooldownUntil =
       document.removeEventListener("touchstart", onPointerDown);
     };
   }, [mobileOpen]);
-  const ok = info?.last_sync_status === "ok";
+  const ok = info?.last_sync_status === "ok" || info?.last_sync_status === "skipped";
+  const lastCheckAt = info?.last_attempt_at || info?.last_sync_at;
 
   return (
     <div className="relative flex items-center gap-1.5 sm:gap-3 min-w-0" data-testid="sync-badge" ref={mobilePanelRef}>
@@ -127,7 +128,7 @@ export default function SyncBadge({ info, onRefresh, refreshing, cooldownUntil =
         {ok ? <Wifi className="h-3.5 w-3.5 text-emerald-600" /> : <WifiOff className="h-3.5 w-3.5 text-amber-600" />}
         <div className="hidden sm:block text-[11px] leading-tight">
           <div className="font-semibold text-slate-700">Dernière sync</div>
-          <div className="text-slate-500 font-mono">{timeAgo(info?.last_sync_at)}</div>
+          <div className="text-slate-500 font-mono">{timeAgo(lastCheckAt)}</div>
         </div>
       </button>
 
@@ -142,7 +143,7 @@ export default function SyncBadge({ info, onRefresh, refreshing, cooldownUntil =
           </div>
           <div>
             <div className="font-semibold text-slate-700">Dernière sync</div>
-            <div className="text-slate-500 font-mono">{timeAgo(info?.last_sync_at)}</div>
+            <div className="text-slate-500 font-mono">{timeAgo(lastCheckAt)}</div>
           </div>
         </div>
       )}
